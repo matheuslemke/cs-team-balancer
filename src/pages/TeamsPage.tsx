@@ -265,7 +265,7 @@ export function TeamsPage() {
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="text-sm text-muted-foreground">Team 1 Total</div>
-                    <div className="text-lg font-semibold text-cs-blue">
+                    <div className="text-lg font-semibold text-foreground">
                       {teams[0]?.total_level || 0}
                     </div>
                   </div>
@@ -277,7 +277,7 @@ export function TeamsPage() {
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="text-sm text-muted-foreground">Team 2 Total</div>
-                    <div className="text-lg font-semibold text-cs-orange">
+                    <div className="text-lg font-semibold text-foreground">
                       {teams[1]?.total_level || 0}
                     </div>
                   </div>

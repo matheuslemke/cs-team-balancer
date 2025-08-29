@@ -36,7 +36,7 @@ export function TeamDisplay({ teams }: TeamDisplayProps) {
               <div>
                 <h3 className="text-xl font-bold">{team.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="secondary" className="bg-gradient-primary text-primary-foreground">
+                  <Badge variant="default" className="text-primary-foreground">
                     Total Level: {team.total_level}
                   </Badge>
                   <Badge variant="outline" className="border-muted">
