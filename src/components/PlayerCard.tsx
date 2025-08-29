@@ -43,7 +43,7 @@ export function PlayerCard({ player, onEdit, onDelete }: PlayerCardProps) {
       <CardContent className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Overall Level</span>
-          <Badge variant="secondary" className="bg-gradient-primary text-primary-foreground font-semibold">
+          <Badge variant="secondary" className="text-primary-foreground font-semibold">
             {player.overall_level}/20
           </Badge>
         </div>
