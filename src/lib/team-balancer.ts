@@ -18,6 +18,39 @@ export const defaultBalancingOptions: BalancingOptions = {
   },
 };
 
+// Helper function to shuffle players within similar skill groups
+function shuffleSimilarSkillGroups(players: Array<PlayerWithRoles & { weightedLevel: number; favoriteRole?: CSRole }>): Array<PlayerWithRoles & { weightedLevel: number; favoriteRole?: CSRole }> {
+  // Group players by similar skill levels (within 2 levels)
+  const groups: Array<Array<PlayerWithRoles & { weightedLevel: number; favoriteRole?: CSRole }>> = [];
+  
+  for (const player of players) {
+    let foundGroup = false;
+    for (const group of groups) {
+      if (group.length > 0 && Math.abs(group[0].weightedLevel - player.weightedLevel) <= 2) {
+        group.push(player);
+        foundGroup = true;
+        break;
+      }
+    }
+    if (!foundGroup) {
+      groups.push([player]);
+    }
+  }
+  
+  // Shuffle within each group to add randomness while maintaining skill balance
+  const shuffledGroups = groups.map(group => {
+    const shuffled = [...group];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  });
+  
+  // Flatten back to single array
+  return shuffledGroups.flat();
+}
+
 export function generateBalancedTeams(
   players: PlayerWithRoles[],
   options: BalancingOptions = defaultBalancingOptions
@@ -39,18 +72,35 @@ export function generateBalancedTeams(
     };
   });
 
-  // Sort players by weighted level (descending)
-  playersWithWeights.sort((a, b) => b.weightedLevel - a.weightedLevel);
+  // Add randomization to the sorting to ensure different results each time
+  // Sort by weighted level but add small random variance to break ties
+  playersWithWeights.sort((a, b) => {
+    const levelDiff = b.weightedLevel - a.weightedLevel;
+    // If levels are very close (within 0.5), add randomization
+    if (Math.abs(levelDiff) < 0.5) {
+      return Math.random() - 0.5;
+    }
+    return levelDiff;
+  });
 
-  // Draft teams alternating picks (snake draft)
-  const team1: typeof playersWithWeights = [];
-  const team2: typeof playersWithWeights = [];
+  // Shuffle players with similar skill levels to add variety
+  const shuffledPlayers = shuffleSimilarSkillGroups(playersWithWeights);
+
+  // Draft teams using randomized snake draft
+  const team1: typeof shuffledPlayers = [];
+  const team2: typeof shuffledPlayers = [];
   
-  let pickingTeam1 = true;
+  // Randomize the starting team and draft pattern
+  let pickingTeam1 = Math.random() < 0.5;
   const maxPlayersPerTeam = options.teamSize;
+  
+  // Randomize the pick frequency (every 1-3 picks instead of fixed 2)
+  const pickFrequencies = [1, 2, 2, 3]; // Weighted towards 2, but with variety
+  let currentPickFreq = pickFrequencies[Math.floor(Math.random() * pickFrequencies.length)];
+  let pickCount = 0;
 
-  for (let i = 0; i < players.length; i++) {
-    const player = playersWithWeights[i];
+  for (let i = 0; i < shuffledPlayers.length; i++) {
+    const player = shuffledPlayers[i];
     
     // Assign player to the team with fewer players, or use the picking order if teams are equal
     if (team1.length < maxPlayersPerTeam && team2.length < maxPlayersPerTeam) {
@@ -61,9 +111,13 @@ export function generateBalancedTeams(
         team2.push(player);
       }
       
-      // Switch teams every 2 picks for better balance
-      if ((i + 1) % 2 === 0) {
+      pickCount++;
+      // Switch teams based on randomized frequency
+      if (pickCount >= currentPickFreq) {
         pickingTeam1 = !pickingTeam1;
+        pickCount = 0;
+        // Pick new random frequency for next round
+        currentPickFreq = pickFrequencies[Math.floor(Math.random() * pickFrequencies.length)];
       }
     } else if (team1.length < maxPlayersPerTeam) {
       // Only team1 has space
@@ -116,8 +170,11 @@ function optimizeRoleDistribution(
 ) {
   const essentialRoles: CSRole[] = ['awp', 'igl'];
   
+  // Shuffle the essential roles to randomize which gets priority
+  const shuffledRoles = [...essentialRoles].sort(() => Math.random() - 0.5);
+  
   // Ensure each team has essential roles
-  for (const role of essentialRoles) {
+  for (const role of shuffledRoles) {
     const team1HasRole = team1.some(p => p.favoriteRole === role);
     const team2HasRole = team2.some(p => p.favoriteRole === role);
     
@@ -125,14 +182,20 @@ function optimizeRoleDistribution(
     
     if (!team1HasRole) {
       // Try to swap a player with this role from team2 to team1
-      const playerWithRole = team2.find(p => p.favoriteRole === role);
-      if (playerWithRole) {
+      const playersWithRole = team2.filter(p => p.favoriteRole === role);
+      if (playersWithRole.length > 0) {
+        // Randomize which player with the role to consider
+        const playerWithRole = playersWithRole[Math.floor(Math.random() * playersWithRole.length)];
         const team2Index = team2.indexOf(playerWithRole);
-        const swapCandidate = team1.find(p => 
-          Math.abs(p.weightedLevel - playerWithRole.weightedLevel) < 2
+        
+        // Find potential swap candidates
+        const swapCandidates = team1.filter(p => 
+          Math.abs(p.weightedLevel - playerWithRole.weightedLevel) < 3
         );
         
-        if (swapCandidate) {
+        if (swapCandidates.length > 0) {
+          // Randomize which swap candidate to use
+          const swapCandidate = swapCandidates[Math.floor(Math.random() * swapCandidates.length)];
           const team1Index = team1.indexOf(swapCandidate);
           team1[team1Index] = playerWithRole;
           team2[team2Index] = swapCandidate;
@@ -140,14 +203,20 @@ function optimizeRoleDistribution(
       }
     } else if (!team2HasRole) {
       // Try to swap a player with this role from team1 to team2
-      const playerWithRole = team1.find(p => p.favoriteRole === role);
-      if (playerWithRole) {
+      const playersWithRole = team1.filter(p => p.favoriteRole === role);
+      if (playersWithRole.length > 0) {
+        // Randomize which player with the role to consider
+        const playerWithRole = playersWithRole[Math.floor(Math.random() * playersWithRole.length)];
         const team1Index = team1.indexOf(playerWithRole);
-        const swapCandidate = team2.find(p => 
-          Math.abs(p.weightedLevel - playerWithRole.weightedLevel) < 2
+        
+        // Find potential swap candidates
+        const swapCandidates = team2.filter(p => 
+          Math.abs(p.weightedLevel - playerWithRole.weightedLevel) < 3
         );
         
-        if (swapCandidate) {
+        if (swapCandidates.length > 0) {
+          // Randomize which swap candidate to use
+          const swapCandidate = swapCandidates[Math.floor(Math.random() * swapCandidates.length)];
           const team2Index = team2.indexOf(swapCandidate);
           team2[team2Index] = playerWithRole;
           team1[team1Index] = swapCandidate;
