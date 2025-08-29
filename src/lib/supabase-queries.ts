@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { Player, PlayerRole, PlayerWithRoles, Team, CSRole } from "@/types/cs-types";
+import type { Player, PlayerRole, PlayerWithRoles, Team, Battle, CSRole } from "@/types/cs-types";
 
 export const playersApi = {
   // Get all players with their roles
@@ -79,12 +79,14 @@ export const playerRolesApi = {
 
 export const teamsApi = {
   // Create teams for a session
-  async createTeams(teams: Omit<Team, 'id' | 'created_at' | 'players'>[]): Promise<void> {
-    const { error } = await supabase
+  async createTeams(teams: Omit<Team, 'id' | 'created_at' | 'players'>[]): Promise<Team[]> {
+    const { data, error } = await supabase
       .from('teams')
-      .insert(teams);
+      .insert(teams)
+      .select();
       
     if (error) throw error;
+    return (data || []).map(team => ({ ...team, players: [] }));
   },
 
   // Create team players
@@ -127,6 +129,107 @@ export const teamsApi = {
       .from('teams')
       .delete()
       .eq('session_id', sessionId);
+      
+    if (error) throw error;
+  },
+};
+
+export const battlesApi = {
+  // Create a new battle
+  async create(battle: { name: string; team1_id: string; team2_id: string; session_id: string }): Promise<any> {
+    const { data, error } = await (supabase as any)
+      .from('battles')
+      .insert(battle)
+      .select()
+      .single();
+      
+    if (error) throw error;
+    return data;
+  },
+
+  // Get all battles with teams
+  async getAll(): Promise<Battle[]> {
+    const { data, error } = await (supabase as any)
+      .from('battles')
+      .select(`
+        *,
+        team1:teams!battles_team1_id_fkey (
+          *,
+          team_players (
+            *,
+            player:players (*)
+          )
+        ),
+        team2:teams!battles_team2_id_fkey (
+          *,
+          team_players (
+            *,
+            player:players (*)
+          )
+        )
+      `)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    return (data || []).map((battle: any) => ({
+      ...battle,
+      team1: battle.team1 ? {
+        ...battle.team1,
+        players: battle.team1.team_players || []
+      } : undefined,
+      team2: battle.team2 ? {
+        ...battle.team2,
+        players: battle.team2.team_players || []
+      } : undefined
+    }));
+  },
+
+  // Get battle by ID
+  async getById(id: string): Promise<Battle | null> {
+    const { data, error } = await (supabase as any)
+      .from('battles')
+      .select(`
+        *,
+        team1:teams!battles_team1_id_fkey (
+          *,
+          team_players (
+            *,
+            player:players (*)
+          )
+        ),
+        team2:teams!battles_team2_id_fkey (
+          *,
+          team_players (
+            *,
+            player:players (*)
+          )
+        )
+      `)
+      .eq('id', id)
+      .single();
+      
+    if (error) throw error;
+    if (!data) return null;
+    
+    return {
+      ...data,
+      team1: data.team1 ? {
+        ...data.team1,
+        players: data.team1.team_players || []
+      } : undefined,
+      team2: data.team2 ? {
+        ...data.team2,
+        players: data.team2.team_players || []
+      } : undefined
+    };
+  },
+
+  // Delete a battle
+  async delete(id: string): Promise<void> {
+    const { error } = await (supabase as any)
+      .from('battles')
+      .delete()
+      .eq('id', id);
       
     if (error) throw error;
   },

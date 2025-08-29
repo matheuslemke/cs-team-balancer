@@ -40,6 +40,18 @@ export interface TeamPlayer {
   player: Player;
 }
 
+export interface Battle {
+  id: string;
+  name: string;
+  team1_id: string;
+  team2_id: string;
+  session_id: string;
+  created_at: string;
+  updated_at: string;
+  team1?: Team;
+  team2?: Team;
+}
+
 export const CS_ROLES: { value: CSRole; label: string; description: string }[] = [
   { value: 'awp', label: 'AWPer', description: 'Primary sniper, high-impact fragger' },
   { value: 'igl', label: 'IGL', description: 'In-Game Leader, caller and strategist' },

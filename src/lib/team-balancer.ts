@@ -144,14 +144,18 @@ export function generateBalancedTeams(
   // Generate session ID
   const sessionId = crypto.randomUUID();
 
+  // Generate team names based on first player in each team
+  const team1Name = team1.length > 0 ? `${team1[0].name} Team` : "Team Counter-Terrorists";
+  const team2Name = team2.length > 0 ? `${team2[0].name} Team` : "Team Terrorists";
+
   const teamData = [
     {
-      name: "Team Counter-Terrorists",
+      name: team1Name,
       total_level: team1Total,
       session_id: sessionId,
     },
     {
-      name: "Team Terrorists", 
+      name: team2Name, 
       total_level: team2Total,
       session_id: sessionId,
     }

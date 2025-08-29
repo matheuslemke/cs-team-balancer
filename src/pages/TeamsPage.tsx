@@ -6,7 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { TeamDisplay } from "@/components/TeamDisplay";
 import { PlayerWithRoles, Team } from "@/types/cs-types";
-import { playersApi, teamsApi } from "@/lib/supabase-queries";
+import { playersApi, teamsApi, battlesApi } from "@/lib/supabase-queries";
 import { generateBalancedTeams, getTeamBalance, defaultBalancingOptions } from "@/lib/team-balancer";
 import { useToast } from "@/hooks/use-toast";
 import { Shuffle, Save, Users, TrendingUp, Search, CheckCircle2, Circle } from "lucide-react";
@@ -135,48 +135,53 @@ export function TeamsPage() {
       }
 
       // Create new teams in database
-      await teamsApi.createTeams(previewTeams.teamData);
+      const createdTeams = await teamsApi.createTeams(previewTeams.teamData);
+      
+      if (createdTeams.length < 2) {
+        throw new Error("Failed to create teams");
+      }
       
       // Create team players
       const team1Players = previewTeams.team1.map(player => ({
-        team_id: '', // Will be filled after getting team IDs
+        team_id: createdTeams[0].id,
         player_id: player.id,
       }));
       
       const team2Players = previewTeams.team2.map(player => ({
-        team_id: '', // Will be filled after getting team IDs
+        team_id: createdTeams[1].id,
         player_id: player.id,
       }));
 
-      // Get the created teams to get their IDs
-      const sessionId = previewTeams.teamData[0].session_id;
-      const createdTeams = await teamsApi.getBySession(sessionId);
+      await teamsApi.createTeamPlayers([...team1Players, ...team2Players]);
       
-      if (createdTeams.length >= 2) {
-        // Update team IDs and create team players
-        const allTeamPlayers = [
-          ...team1Players.map(tp => ({ ...tp, team_id: createdTeams[0].id })),
-          ...team2Players.map(tp => ({ ...tp, team_id: createdTeams[1].id }))
-        ];
-        
-        await teamsApi.createTeamPlayers(allTeamPlayers);
-        
-        // Load the complete teams with players
-        const finalTeams = await teamsApi.getBySession(sessionId);
-        setTeams(finalTeams);
-        setCurrentSessionId(sessionId);
-        setPreviewTeams(null); // Clear preview after saving
-        
-        toast({
-          title: "Teams saved successfully!",
-          description: "Your teams have been saved to the database"
-        });
-      }
+      // Generate battle name
+      const team1FirstPlayer = previewTeams.team1[0]?.name || "Team 1";
+      const team2FirstPlayer = previewTeams.team2[0]?.name || "Team 2";
+      const battleName = `${team1FirstPlayer} Team vs ${team2FirstPlayer} Team`;
+      
+      // Create battle record
+      await battlesApi.create({
+        name: battleName,
+        team1_id: createdTeams[0].id,
+        team2_id: createdTeams[1].id,
+        session_id: previewTeams.teamData[0].session_id
+      });
+      
+      // Load the complete teams with players
+      const finalTeams = await teamsApi.getBySession(previewTeams.teamData[0].session_id);
+      setTeams(finalTeams);
+      setCurrentSessionId(previewTeams.teamData[0].session_id);
+      setPreviewTeams(null); // Clear preview after saving
+      
+      toast({
+        title: "Battle saved successfully!",
+        description: `${battleName} has been saved to the database`
+      });
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "Error saving teams",
-        description: "Failed to save teams to database"
+        title: "Error saving battle",
+        description: "Failed to save battle to database"
       });
     } finally {
       setSaving(false);
@@ -338,7 +343,7 @@ export function TeamsPage() {
                         ) : (
                           <>
                             <Save className="h-4 w-4 mr-2" />
-                            Save Teams
+                            Save Battle
                           </>
                         )}
                       </Button>
@@ -367,7 +372,7 @@ export function TeamsPage() {
               {previewTeams && (
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>Preview Mode:</strong> These teams are generated but not saved yet. You can drag players between teams to manually adjust, regenerate, or save them when you're satisfied.
+                    <strong>Preview Mode:</strong> These teams are generated but not saved yet. You can drag players between teams to manually adjust, regenerate, or save as a battle when you're satisfied. Saved battles can be viewed and shared in the Battles page.
                   </p>
                 </div>
               )}

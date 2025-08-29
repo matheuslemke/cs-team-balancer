@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Home, Users, Trophy } from "lucide-react";
+import { Home, Users, Trophy, Swords } from "lucide-react";
 
 export function Header() {
   const location = useLocation();
@@ -49,6 +49,16 @@ export function Header() {
             <Link to="/teams" className="flex items-center space-x-2">
               <Trophy className="h-4 w-4" />
               <span>Teams</span>
+            </Link>
+          </Button>
+          <Button
+            variant={isActive("/battles") ? "default" : "ghost"}
+            size="sm"
+            asChild
+          >
+            <Link to="/battles" className="flex items-center space-x-2">
+              <Swords className="h-4 w-4" />
+              <span>Battles</span>
             </Link>
           </Button>
         </nav>
