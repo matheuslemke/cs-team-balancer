@@ -183,6 +183,43 @@ export function TeamsPage() {
     }
   };
 
+  const handleTeamsChange = (updatedTeams: Team[]) => {
+    if (previewTeams) {
+      // Update preview teams - need to find original players with roles
+      const team1Players = updatedTeams[0]?.players.map(tp => {
+        const originalPlayer = players.find(p => p.id === tp.player.id);
+        return originalPlayer || tp.player as PlayerWithRoles;
+      }) || [];
+      
+      const team2Players = updatedTeams[1]?.players.map(tp => {
+        const originalPlayer = players.find(p => p.id === tp.player.id);
+        return originalPlayer || tp.player as PlayerWithRoles;
+      }) || [];
+      
+      const newPreviewTeams = {
+        ...previewTeams,
+        team1: team1Players,
+        team2: team2Players,
+        teamData: [
+          {
+            name: updatedTeams[0]?.name || "Team Counter-Terrorists",
+            total_level: updatedTeams[0]?.total_level || 0,
+            session_id: previewTeams.teamData[0].session_id
+          },
+          {
+            name: updatedTeams[1]?.name || "Team Terrorists",
+            total_level: updatedTeams[1]?.total_level || 0,
+            session_id: previewTeams.teamData[1].session_id
+          }
+        ]
+      };
+      setPreviewTeams(newPreviewTeams);
+    } else {
+      // Update saved teams
+      setTeams(updatedTeams);
+    }
+  };
+
   const handleDiscardTeams = () => {
     setPreviewTeams(null);
     toast({
@@ -330,7 +367,7 @@ export function TeamsPage() {
               {previewTeams && (
                 <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>Preview Mode:</strong> These teams are generated but not saved yet. You can regenerate or save them when you're satisfied.
+                    <strong>Preview Mode:</strong> These teams are generated but not saved yet. You can drag players between teams to manually adjust, regenerate, or save them when you're satisfied.
                   </p>
                 </div>
               )}
@@ -469,36 +506,41 @@ export function TeamsPage() {
             </Card>
           )}
 
-          <TeamDisplay teams={previewTeams ? [
-            {
-              id: 'preview-1',
-              name: previewTeams.teamData[0].name,
-              session_id: previewTeams.teamData[0].session_id,
-              total_level: previewTeams.teamData[0].total_level,
-              created_at: new Date().toISOString(),
-              players: previewTeams.team1.map(player => ({
-                id: `preview-player-${player.id}`,
-                team_id: 'preview-1',
-                player_id: player.id,
+          <TeamDisplay 
+            teams={previewTeams ? [
+              {
+                id: 'preview-1',
+                name: previewTeams.teamData[0].name,
+                session_id: previewTeams.teamData[0].session_id,
+                total_level: previewTeams.teamData[0].total_level,
                 created_at: new Date().toISOString(),
-                player: player
-              }))
-            },
-            {
-              id: 'preview-2',
-              name: previewTeams.teamData[1].name,
-              session_id: previewTeams.teamData[1].session_id,
-              total_level: previewTeams.teamData[1].total_level,
-              created_at: new Date().toISOString(),
-              players: previewTeams.team2.map(player => ({
-                id: `preview-player-${player.id}`,
-                team_id: 'preview-2',
-                player_id: player.id,
+                players: previewTeams.team1.map(player => ({
+                  id: `preview-player-${player.id}`,
+                  team_id: 'preview-1',
+                  player_id: player.id,
+                  created_at: new Date().toISOString(),
+                  player: player
+                }))
+              },
+              {
+                id: 'preview-2',
+                name: previewTeams.teamData[1].name,
+                session_id: previewTeams.teamData[1].session_id,
+                total_level: previewTeams.teamData[1].total_level,
                 created_at: new Date().toISOString(),
-                player: player
-              }))
-            }
-          ] : teams} />
+                players: previewTeams.team2.map(player => ({
+                  id: `preview-player-${player.id}`,
+                  team_id: 'preview-2',
+                  player_id: player.id,
+                  created_at: new Date().toISOString(),
+                  player: player
+                }))
+              }
+            ] : teams}
+            onTeamsChange={handleTeamsChange}
+            isDraggable={previewTeams !== null || teams.length > 0}
+            playersData={players}
+          />
         </div>
       </div>
   );
