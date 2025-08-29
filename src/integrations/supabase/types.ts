@@ -14,7 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      player_roles: {
+        Row: {
+          created_at: string
+          id: string
+          is_favorite: boolean
+          level: number
+          player_id: string
+          role: Database["public"]["Enums"]["cs_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          level: number
+          player_id: string
+          role: Database["public"]["Enums"]["cs_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          level?: number
+          player_id?: string
+          role?: Database["public"]["Enums"]["cs_role"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_roles_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          overall_level: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          overall_level: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          overall_level?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      team_players: {
+        Row: {
+          assigned_role: Database["public"]["Enums"]["cs_role"] | null
+          created_at: string
+          id: string
+          player_id: string
+          team_id: string
+        }
+        Insert: {
+          assigned_role?: Database["public"]["Enums"]["cs_role"] | null
+          created_at?: string
+          id?: string
+          player_id: string
+          team_id: string
+        }
+        Update: {
+          assigned_role?: Database["public"]["Enums"]["cs_role"] | null
+          created_at?: string
+          id?: string
+          player_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_players_player_id_fkey"
+            columns: ["player_id"]
+            isOneToOne: false
+            referencedRelation: "players"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_players_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          session_id: string
+          total_level: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          session_id: string
+          total_level: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          session_id?: string
+          total_level?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +147,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      cs_role: "awp" | "igl" | "entry_fragger" | "support" | "lurker"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +274,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      cs_role: ["awp", "igl", "entry_fragger", "support", "lurker"],
+    },
   },
 } as const
