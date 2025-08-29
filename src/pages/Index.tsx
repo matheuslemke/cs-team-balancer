@@ -6,7 +6,7 @@ import heroImage from "@/assets/cs-hero.jpg";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       {/* Hero Section */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden">
         <div 

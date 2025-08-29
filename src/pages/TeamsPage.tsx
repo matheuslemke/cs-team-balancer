@@ -167,7 +167,7 @@ export function TeamsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center min-h-[calc(100vh-3.5rem)]">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading data...</p>
@@ -177,8 +177,7 @@ export function TeamsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4">
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <div>
@@ -389,6 +388,5 @@ export function TeamsPage() {
           <TeamDisplay teams={teams} />
         </div>
       </div>
-    </div>
   );
 }
