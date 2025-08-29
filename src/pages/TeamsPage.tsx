@@ -14,6 +14,7 @@ import { Shuffle, Save, Users, TrendingUp, Search, CheckCircle2, Circle } from "
 export function TeamsPage() {
   const [players, setPlayers] = useState<PlayerWithRoles[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [previewTeams, setPreviewTeams] = useState<{ team1: PlayerWithRoles[]; team2: PlayerWithRoles[]; teamData: Pick<Team, 'name' | 'total_level' | 'session_id'>[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,55 +59,20 @@ export function TeamsPage() {
     try {
       const result = generateBalancedTeams(selectedPlayers, defaultBalancingOptions);
       
-      // Clear previous session if exists
-      if (currentSessionId) {
-        await teamsApi.deleteBySession(currentSessionId);
-      }
-
-      // Create new teams in database
-      await teamsApi.createTeams(result.teamData);
+      // Store preview teams without saving to database
+      setPreviewTeams(result);
       
-      // Create team players
-      const team1Players = result.team1.map(player => ({
-        team_id: '', // Will be filled after getting team IDs
-        player_id: player.id,
-      }));
+      const balance = getTeamBalance(
+        result.teamData[0].total_level,
+        result.teamData[1].total_level
+      );
       
-      const team2Players = result.team2.map(player => ({
-        team_id: '', // Will be filled after getting team IDs
-        player_id: player.id,
-      }));
-
-      // Get the created teams to get their IDs
-      const sessionId = result.teamData[0].session_id;
-      const createdTeams = await teamsApi.getBySession(sessionId);
+      toast({
+        title: "Teams generated successfully!",
+        description: `Balance: ${balance.balancePercentage}% (${balance.isBalanced ? 'Balanced' : 'Needs adjustment'})`
+      });
       
-      if (createdTeams.length >= 2) {
-        // Update team IDs and create team players
-        const allTeamPlayers = [
-          ...team1Players.map(tp => ({ ...tp, team_id: createdTeams[0].id })),
-          ...team2Players.map(tp => ({ ...tp, team_id: createdTeams[1].id }))
-        ];
-        
-        await teamsApi.createTeamPlayers(allTeamPlayers);
-        
-        // Load the complete teams with players
-        const finalTeams = await teamsApi.getBySession(sessionId);
-        setTeams(finalTeams);
-        setCurrentSessionId(sessionId);
-        
-        const balance = getTeamBalance(
-          result.teamData[0].total_level,
-          result.teamData[1].total_level
-        );
-        
-        toast({
-          title: "Teams generated successfully!",
-          description: `Balance: ${balance.balancePercentage}% (${balance.isBalanced ? 'Balanced' : 'Needs adjustment'})`
-        });
-        
-        setShowPlayerSelection(false);
-      }
+      setShowPlayerSelection(false);
     } catch (error) {
       toast({
         variant: "destructive",
@@ -151,11 +117,92 @@ export function TeamsPage() {
     setSelectedPlayerIds(new Set());
   };
 
+  const handleSaveTeams = async () => {
+    if (!previewTeams) {
+      toast({
+        variant: "destructive",
+        title: "No teams to save",
+        description: "Please generate teams first"
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Clear previous session if exists
+      if (currentSessionId) {
+        await teamsApi.deleteBySession(currentSessionId);
+      }
+
+      // Create new teams in database
+      await teamsApi.createTeams(previewTeams.teamData);
+      
+      // Create team players
+      const team1Players = previewTeams.team1.map(player => ({
+        team_id: '', // Will be filled after getting team IDs
+        player_id: player.id,
+      }));
+      
+      const team2Players = previewTeams.team2.map(player => ({
+        team_id: '', // Will be filled after getting team IDs
+        player_id: player.id,
+      }));
+
+      // Get the created teams to get their IDs
+      const sessionId = previewTeams.teamData[0].session_id;
+      const createdTeams = await teamsApi.getBySession(sessionId);
+      
+      if (createdTeams.length >= 2) {
+        // Update team IDs and create team players
+        const allTeamPlayers = [
+          ...team1Players.map(tp => ({ ...tp, team_id: createdTeams[0].id })),
+          ...team2Players.map(tp => ({ ...tp, team_id: createdTeams[1].id }))
+        ];
+        
+        await teamsApi.createTeamPlayers(allTeamPlayers);
+        
+        // Load the complete teams with players
+        const finalTeams = await teamsApi.getBySession(sessionId);
+        setTeams(finalTeams);
+        setCurrentSessionId(sessionId);
+        setPreviewTeams(null); // Clear preview after saving
+        
+        toast({
+          title: "Teams saved successfully!",
+          description: "Your teams have been saved to the database"
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error saving teams",
+        description: "Failed to save teams to database"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDiscardTeams = () => {
+    setPreviewTeams(null);
+    toast({
+      title: "Teams discarded",
+      description: "Generated teams have been discarded"
+    });
+  };
+
   const filteredPlayers = players.filter(player =>
     player.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getBalanceInfo = () => {
+    // Check preview teams first, then saved teams
+    if (previewTeams && previewTeams.teamData.length >= 2) {
+      const team1Total = previewTeams.teamData[0].total_level;
+      const team2Total = previewTeams.teamData[1].total_level;
+      return getTeamBalance(team1Total, team2Total);
+    }
+    
     if (teams.length < 2) return null;
     
     const team1Total = teams[0].total_level;
@@ -239,6 +286,35 @@ export function TeamsPage() {
                       </>
                     )}
                   </Button>
+                  {previewTeams && (
+                    <>
+                      <Button
+                        onClick={handleSaveTeams}
+                        disabled={saving}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {saving ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            Save Teams
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        onClick={handleDiscardTeams}
+                        disabled={saving}
+                        variant="outline"
+                        className="border-destructive text-destructive hover:bg-destructive/10"
+                      >
+                        Discard
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -247,6 +323,14 @@ export function TeamsPage() {
                   <p className="text-sm text-destructive">
                     You need at least 10 players to generate balanced teams. 
                     Currently you have {players.length} players.
+                  </p>
+                </div>
+              )}
+
+              {previewTeams && (
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Preview Mode:</strong> These teams are generated but not saved yet. You can regenerate or save them when you're satisfied.
                   </p>
                 </div>
               )}
@@ -265,7 +349,7 @@ export function TeamsPage() {
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="text-sm text-muted-foreground">Team 1 Total</div>
                     <div className="text-lg font-semibold text-foreground">
-                      {teams[0]?.total_level || 0}
+                      {previewTeams ? previewTeams.teamData[0]?.total_level || 0 : teams[0]?.total_level || 0}
                     </div>
                   </div>
                   <div className="p-3 bg-muted rounded-lg">
@@ -277,7 +361,7 @@ export function TeamsPage() {
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="text-sm text-muted-foreground">Team 2 Total</div>
                     <div className="text-lg font-semibold text-foreground">
-                      {teams[1]?.total_level || 0}
+                      {previewTeams ? previewTeams.teamData[1]?.total_level || 0 : teams[1]?.total_level || 0}
                     </div>
                   </div>
                 </div>
@@ -385,7 +469,36 @@ export function TeamsPage() {
             </Card>
           )}
 
-          <TeamDisplay teams={teams} />
+          <TeamDisplay teams={previewTeams ? [
+            {
+              id: 'preview-1',
+              name: previewTeams.teamData[0].name,
+              session_id: previewTeams.teamData[0].session_id,
+              total_level: previewTeams.teamData[0].total_level,
+              created_at: new Date().toISOString(),
+              players: previewTeams.team1.map(player => ({
+                id: `preview-player-${player.id}`,
+                team_id: 'preview-1',
+                player_id: player.id,
+                created_at: new Date().toISOString(),
+                player: player
+              }))
+            },
+            {
+              id: 'preview-2',
+              name: previewTeams.teamData[1].name,
+              session_id: previewTeams.teamData[1].session_id,
+              total_level: previewTeams.teamData[1].total_level,
+              created_at: new Date().toISOString(),
+              players: previewTeams.team2.map(player => ({
+                id: `preview-player-${player.id}`,
+                team_id: 'preview-2',
+                player_id: player.id,
+                created_at: new Date().toISOString(),
+                player: player
+              }))
+            }
+          ] : teams} />
         </div>
       </div>
   );
