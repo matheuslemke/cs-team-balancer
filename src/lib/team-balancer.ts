@@ -49,18 +49,32 @@ export function generateBalancedTeams(
   let pickingTeam1 = true;
   const maxPlayersPerTeam = options.teamSize;
 
-  for (let i = 0; i < players.length && team1.length < maxPlayersPerTeam && team2.length < maxPlayersPerTeam; i++) {
+  for (let i = 0; i < players.length; i++) {
     const player = playersWithWeights[i];
     
-    if (pickingTeam1 && team1.length < maxPlayersPerTeam) {
+    // Assign player to the team with fewer players, or use the picking order if teams are equal
+    if (team1.length < maxPlayersPerTeam && team2.length < maxPlayersPerTeam) {
+      // Both teams have space, use the picking order
+      if (pickingTeam1) {
+        team1.push(player);
+      } else {
+        team2.push(player);
+      }
+      
+      // Switch teams every 2 picks for better balance
+      if ((i + 1) % 2 === 0) {
+        pickingTeam1 = !pickingTeam1;
+      }
+    } else if (team1.length < maxPlayersPerTeam) {
+      // Only team1 has space
       team1.push(player);
-    } else if (!pickingTeam1 && team2.length < maxPlayersPerTeam) {
+    } else if (team2.length < maxPlayersPerTeam) {
+      // Only team2 has space
       team2.push(player);
     }
-    
-    // Switch teams every 2 picks for better balance
-    if ((i + 1) % 2 === 0) {
-      pickingTeam1 = !pickingTeam1;
+    // If both teams are full, stop processing
+    if (team1.length >= maxPlayersPerTeam && team2.length >= maxPlayersPerTeam) {
+      break;
     }
   }
 
